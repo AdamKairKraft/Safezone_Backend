@@ -33,6 +33,11 @@ Day to day: branch off `dev`, open a PR back into `dev`.
 
 ## Running locally
 
+> **Once this is deployed to the cloud**, dev/staging/production will each have their
+> own cloud-hosted Postgres database — the `docker compose` Postgres setup below is
+> local-only and won't be used at that point. Docker's role shifts to containerizing
+> the *app itself* for deployment, rather than running its database.
+
 ### Quick start
 
 ```bash
