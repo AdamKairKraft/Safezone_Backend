@@ -33,6 +33,21 @@ Day to day: branch off `dev`, open a PR back into `dev`.
 
 ## Running locally
 
+### Quick start
+
+```bash
+./start.sh   # starts Postgres + the app (local profile, demo data included)
+./stop.sh    # stops the app and Postgres
+```
+
+`start.sh` waits for Postgres to be healthy, then runs the app in the background,
+writing logs to `.run/app.log` (`tail -f .run/app.log` to follow them) and its pid to
+`.run/app.pid`. `stop.sh` stops both. Postgres data persists in a docker volume across
+`stop.sh`/`start.sh` cycles — see the manual steps below to wipe it.
+
+The rest of this section is what those scripts do, spelled out, if you want to run
+steps individually or understand what's going on.
+
 ### 1. Start the database
 
 ```bash
