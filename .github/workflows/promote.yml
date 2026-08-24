@@ -6,7 +6,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
   promote:
@@ -16,33 +15,11 @@ jobs:
         target: [staging, production]
       fail-fast: false
     steps:
-      - name: Checkout
+      - name: Checkout dev
         uses: actions/checkout@v4
         with:
+          ref: dev
           fetch-depth: 0
 
-      - name: Open and auto-merge promotion PR
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          git fetch origin dev ${{ matrix.target }}
-
-          if git merge-base --is-ancestor origin/dev origin/${{ matrix.target }}; then
-            echo "${{ matrix.target }} is already up to date with dev"
-            exit 0
-          fi
-
-          SHORT_SHA=$(git rev-parse --short origin/dev)
-          BRANCH="promote/dev-to-${{ matrix.target }}"
-          git checkout -B "$BRANCH" origin/dev
-          git push origin "$BRANCH" --force
-
-          PR_URL=$(gh pr list --base ${{ matrix.target }} --head "$BRANCH" --state open --json url -q '.[0].url' || true)
-          if [ -z "$PR_URL" ]; then
-            PR_URL=$(gh pr create --base ${{ matrix.target }} --head "$BRANCH" \
-              --title "Promote dev to ${{ matrix.target }} ($SHORT_SHA)" \
-              --body "Automated promotion of dev ($SHORT_SHA) to ${{ matrix.target }}.")
-          fi
-
-          gh pr merge "$PR_URL" --merge --auto
+      - name: Fast-forward ${{ matrix.target }} to dev
+        run: git push origin HEAD:${{ matrix.target }}

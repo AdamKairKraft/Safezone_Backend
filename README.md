@@ -23,13 +23,36 @@ aid). Each business area lives in its own module under `src/main/java/com/safezo
 
 ## Branching
 
+Three permanent branches; everything else is temporary work that gets deleted once
+it's done with.
+
 - `dev` — where all work lands. Every change goes through a pull request into `dev`
   requiring 2 approvals and a passing CI build; no one can push to it directly.
-- `staging` / `production` — updated automatically. Merging a PR into `dev` triggers a
-  workflow that opens and auto-merges a promotion PR into each, once CI passes there too.
-  Nobody pushes to these branches by hand.
+- `staging` / `production` — updated automatically, no PR involved. Merging a PR into
+  `dev` triggers a workflow (`.github/workflows/promote.yml`) that pushes that same
+  commit straight to `staging` and `production` once CI has passed on `dev`. Nobody
+  pushes to these branches by hand, and no pull request ever targets them directly.
 
-Day to day: branch off `dev`, open a PR back into `dev`.
+  > This relies on everyone with push access sticking to the `dev` PR flow rather than
+  > pushing to `staging`/`production` directly — GitHub can only *technically* block
+  > that on an organization-owned repo (push-access restrictions aren't available on
+  > personal accounts). Worth moving to an org if/when more people join with push access.
+
+### Working branches
+
+Branch off `dev`, name it `<your-name>/<type>/<short-description>`, open a PR back
+into `dev`. `type` is one of:
+
+- `bug` — fixing something broken
+- `task` — a planned piece of work (feature, chore, setup)
+- `refactor` — restructuring without changing behavior
+
+Examples: `adamk/bug/fix-login-redirect`, `adamk/task/add-report-export`,
+`adamk/refactor/simplify-sync-service`.
+
+Once a branch's PR merges into `dev`, GitHub deletes it automatically (repo setting:
+"Automatically delete head branches") — `dev`/`staging`/`production` plus whatever
+branches represent work currently in flight is all that should ever exist.
 
 ## Running locally
 
@@ -120,6 +143,15 @@ If you edit this file, Flyway will re-apply it on next startup (repeatable migra
 re-run when their checksum changes). Inserts use `on conflict do nothing`, so re-running
 against a database that already has this data is safe — to fully re-seed after an edit,
 run `docker compose down -v` first.
+
+## API testing (Postman)
+
+`postman/SafeZone-Backend.postman_collection.json` covers every REST endpoint. Import
+it into Postman and go — its variables default to the IDs the demo data seeds above, so
+most requests work immediately against `./start.sh` with no setup. See the collection's
+own description and each request's description for details (including one known bug,
+flagged where it applies: `Submit report` / `Resolve conflict` currently 500 due to a
+Spring Modulith observability instrumentation issue, unrelated to this collection).
 
 ## Running tests
 
