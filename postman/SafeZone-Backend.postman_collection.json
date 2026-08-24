@@ -1,34 +1,138 @@
 {
   "info": {
     "name": "SafeZone Backend",
-    "description": "Every REST endpoint exposed by the SafeZone backend. Collection variables default to the IDs seeded by src/main/resources/db/seed/R__demo_data.sql, so most requests work immediately against a locally running instance (see README: ./start.sh) with no setup. Run 'Reports > Upsert report (create/update draft)' first if you want a freshly created report instead of the seeded draft - its Tests script saves the new id into {{reportId}} automatically.",
+    "description": "Every REST endpoint exposed by the SafeZone backend. Collection variables default to the IDs seeded by src/main/resources/db/seed/R__demo_data.sql, so most requests work immediately against a locally running instance (see README: ./start.sh) with no setup.\n\nAUTH: everything except Auth/* and /actuator/health requires a valid access token (SecurityConfig permits only \"/api/auth/**\", \"/actuator/health\", \"/actuator/info\" - anyRequest() else needs authentication). Run 'Auth > Login' first - its Tests script saves accessToken/refreshToken into collection variables, and every other request in this collection is set to inherit a collection-level Bearer auth using {{accessToken}}. X-User-Id and X-Organization-Id are NOT sent manually anywhere: JwtAuthenticationFilter/ClaimsHeaderRequestWrapper overwrite those headers server-side from the verified token's claims regardless of what a client sends, so a request that still requires them (Submit report, Sync push/pull, Resolve conflict) gets them for free from whoever is logged in.\n\nRun 'Reports > Upsert report (create/update draft)' if you want a freshly created report instead of the seeded draft - its Tests script saves the new id into {{reportId}} automatically.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
   },
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "email", "value": "tom.reid@acme-construction.test", "description": "Seeded demo user, SITE_SUPERVISOR - see README Demo credentials. All 6 seeded users share the password below." },
+    { "key": "password", "value": "SafeZone123!" },
+    { "key": "accessToken", "value": "", "description": "Set automatically by Auth > Login (and refreshed by Auth > Refresh)." },
+    { "key": "refreshToken", "value": "", "description": "Set automatically by Auth > Login (and refreshed by Auth > Refresh)." },
     { "key": "orgId", "value": "a0000000-0000-0000-0000-000000000001", "description": "Seeded: Acme Construction Group" },
     { "key": "siteId", "value": "b0000000-0000-0000-0000-000000000001", "description": "Seeded: Downtown Tower Project" },
-    { "key": "userId", "value": "c0000000-0000-0000-0000-000000000002", "description": "Seeded: Tom Reid (SITE_SUPERVISOR)" },
+    { "key": "userId", "value": "c0000000-0000-0000-0000-000000000002", "description": "Seeded: Tom Reid (SITE_SUPERVISOR) - matches the default email/password above" },
     { "key": "reportId", "value": "d0000000-0000-0000-0000-000000000003", "description": "Seeded: DRAFT toolbox talk report" },
     { "key": "sheFileId", "value": "e0000000-0000-0000-0000-000000000002", "description": "Seeded: expiring-soon training certificate" },
     { "key": "conflictId", "value": "", "description": "No conflicts are seeded - push a mutation with a stale baseVersion via Sync > Push to create one, then paste its id here" }
   ],
   "item": [
     {
-      "name": "Health",
+      "name": "Auth",
       "item": [
         {
-          "name": "Health check",
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('accessToken', body.accessToken);",
+                  "    pm.collectionVariables.set('refreshToken', body.refreshToken);",
+                  "    pm.collectionVariables.set('userId', body.user.id);",
+                  "    pm.collectionVariables.set('orgId', body.user.organizationId);",
+                  "}"
+                ]
+              }
+            }
+          ],
           "request": {
-            "method": "GET",
-            "url": { "raw": "{{baseUrl}}/actuator/health", "host": ["{{baseUrl}}"], "path": ["actuator", "health"] }
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "auth", "login"] },
+            "description": "Public - no bearer token needed (see SecurityConfig, /api/auth/** is permitAll). Run this first: its Tests script saves accessToken/refreshToken/userId/orgId so every other request in the collection (which inherits the collection-level Bearer auth) works immediately."
           }
         },
         {
-          "name": "Module structure (Modulith)",
+          "name": "Refresh",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('accessToken', body.accessToken);",
+                  "    pm.collectionVariables.set('refreshToken', body.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/refresh", "host": ["{{baseUrl}}"], "path": ["api", "auth", "refresh"] },
+            "description": "Exchanges the current refresh token for a new access/refresh pair. Public endpoint - the refresh token itself is the credential."
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/auth/logout", "host": ["{{baseUrl}}"], "path": ["api", "auth", "logout"] },
+            "description": "Revokes the given refresh token. Returns 204. The old accessToken collection variable stays put (JWTs aren't individually revocable) but will start failing once it expires - run Login again for a fresh one."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get current user (me)",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{baseUrl}}/actuator/modulith", "host": ["{{baseUrl}}"], "path": ["actuator", "modulith"] }
+            "url": { "raw": "{{baseUrl}}/api/users/me", "host": ["{{baseUrl}}"], "path": ["api", "users", "me"] },
+            "description": "X-User-Id is derived from the bearer token by JwtAuthenticationFilter, not sent by the client - this always returns whoever {{accessToken}} belongs to."
+          }
+        },
+        {
+          "name": "Get user by id",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "{{userId}}"]
+            }
+          }
+        },
+        {
+          "name": "List users by organization",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/users?organizationId={{orgId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users"],
+              "query": [{ "key": "organizationId", "value": "{{orgId}}" }]
+            }
           }
         }
       ]
@@ -121,6 +225,40 @@
               "path": ["api", "industry-modules", "CONSTRUCTION", "report-types"]
             }
           }
+        },
+        {
+          "name": "List roles for a module",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/industry-modules/CONSTRUCTION/roles",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "industry-modules", "CONSTRUCTION", "roles"]
+            },
+            "description": "Returns the RoleType vocabulary applicable to this module: SHE_OFFICER, SITE_SUPERVISOR, GENERAL_WORKER, CONTRACTOR, MANAGEMENT."
+          }
+        },
+        {
+          "name": "List responsibilities for a role",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/industry-modules/CONSTRUCTION/roles/SITE_SUPERVISOR/responsibilities",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "industry-modules", "CONSTRUCTION", "roles", "SITE_SUPERVISOR", "responsibilities"]
+            }
+          }
+        },
+        {
+          "name": "List required reports for a role",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/industry-modules/CONSTRUCTION/roles/SITE_SUPERVISOR/required-reports",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "industry-modules", "CONSTRUCTION", "roles", "SITE_SUPERVISOR", "required-reports"]
+            }
+          }
         }
       ]
     },
@@ -185,16 +323,13 @@
           "name": "Submit report",
           "request": {
             "method": "POST",
-            "header": [
-              { "key": "X-User-Id", "value": "{{userId}}" },
-              { "key": "Idempotency-Key", "value": "{{$guid}}" }
-            ],
+            "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}" }],
             "url": {
               "raw": "{{baseUrl}}/api/reports/{{reportId}}/submit",
               "host": ["{{baseUrl}}"],
               "path": ["api", "reports", "{{reportId}}", "submit"]
             },
-            "description": "Idempotency-Key defaults to a fresh guid per send (Postman's dynamic variable) - re-sending the exact same key returns the original response instead of re-submitting."
+            "description": "actorId (X-User-Id) comes from the bearer token, not a client header - it's whoever {{accessToken}} belongs to. Idempotency-Key defaults to a fresh guid per send (Postman's dynamic variable) - re-sending the exact same key returns the original response instead of re-submitting."
           }
         }
       ]
@@ -281,29 +416,26 @@
           "name": "Push mutations",
           "request": {
             "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" },
-              { "key": "X-User-Id", "value": "{{userId}}" }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"mutations\": [\n    {\n      \"entityType\": \"report\",\n      \"entityId\": \"{{reportId}}\",\n      \"baseVersion\": 0,\n      \"payload\": {\n        \"organizationId\": \"{{orgId}}\",\n        \"siteId\": \"{{siteId}}\",\n        \"industryModuleCode\": \"CONSTRUCTION\",\n        \"reportTypeCode\": \"TOOLBOX_TALK\",\n        \"status\": \"DRAFT\",\n        \"data\": {\n          \"dateTime\": \"2026-08-24T08:00:00Z\",\n          \"topic\": \"Updated via sync push\",\n          \"attendees\": \"12 crew members\"\n        }\n      }\n    }\n  ]\n}"
             },
             "url": { "raw": "{{baseUrl}}/api/sync/push", "host": ["{{baseUrl}}"], "path": ["api", "sync", "push"] },
-            "description": "entityType is currently only 'report'. A mismatched baseVersion against the server's current version is what produces a sync conflict (see Conflicts folder). Adjust the payload fields to match ReportSyncPayload if this changes."
+            "description": "actorId (X-User-Id) comes from the bearer token, not a client header. entityType is currently only 'report'. A mismatched baseVersion against the server's current version is what produces a sync conflict (see Conflicts folder). Adjust the payload fields to match ReportSyncPayload if this changes."
           }
         },
         {
           "name": "Pull changes",
           "request": {
             "method": "GET",
-            "header": [{ "key": "X-Organization-Id", "value": "{{orgId}}" }],
             "url": {
               "raw": "{{baseUrl}}/api/sync/pull",
               "host": ["{{baseUrl}}"],
               "path": ["api", "sync", "pull"],
               "query": [{ "key": "since", "value": "", "disabled": true, "description": "ISO-8601 instant, e.g. 2026-08-01T00:00:00Z. Omit to pull everything." }]
-            }
+            },
+            "description": "organizationId (X-Organization-Id) comes from the bearer token, not a client header - this always pulls for whoever {{accessToken}} belongs to."
           }
         }
       ]
@@ -324,7 +456,6 @@
             "method": "POST",
             "header": [
               { "key": "Content-Type", "value": "application/json" },
-              { "key": "X-User-Id", "value": "{{userId}}" },
               { "key": "Idempotency-Key", "value": "{{$guid}}" }
             ],
             "body": {
@@ -336,7 +467,28 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "conflicts", "{{conflictId}}", "resolve"]
             },
-            "description": "resolution must be one of: KEPT_SERVER, RESTORED_MINE, MERGED. mergedPayload is only used (and required) when resolution is MERGED. Set the {{conflictId}} collection variable from a real conflict first (see List pending conflicts)."
+            "description": "actorId (X-User-Id) comes from the bearer token, not a client header. resolution must be one of: KEPT_SERVER, RESTORED_MINE, MERGED. mergedPayload is only used (and required) when resolution is MERGED. Set the {{conflictId}} collection variable from a real conflict first (see List pending conflicts)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/actuator/health", "host": ["{{baseUrl}}"], "path": ["actuator", "health"] }
+          }
+        },
+        {
+          "name": "Module structure (Modulith)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/actuator/modulith", "host": ["{{baseUrl}}"], "path": ["actuator", "modulith"] },
+            "description": "Unlike /actuator/health and /actuator/info, this actuator endpoint is NOT in SecurityConfig's permitAll list, so it needs a bearer token like everything else."
           }
         }
       ]
