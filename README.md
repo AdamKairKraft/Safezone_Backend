@@ -15,6 +15,33 @@ aid). Each business area lives in its own module under `src/main/java/com/safezo
 | `notification` | Reacts to domain events (e.g. a submitted report) and notifies |
 | `shared` | Cross-module base types, idempotency, and web error handling |
 
+## Authentication
+
+The API is secured with JWT bearer tokens (`identity.internal.security`, wired up via
+Spring Security). There's no session/cookie state - every protected request needs
+`Authorization: Bearer <accessToken>`.
+
+- `POST /api/auth/login` `{email, password}` → `{accessToken, refreshToken, expiresIn, user}`
+- `POST /api/auth/refresh` `{refreshToken}` → same shape (refresh tokens rotate: the old one
+  is revoked the moment it's used)
+- `POST /api/auth/logout` `{refreshToken}` → revokes it
+
+Access tokens last 30 minutes; refresh tokens last 14 days (deliberately long - a tablet
+client can go offline for a multi-day stretch and still resync without forcing a re-login).
+Both are configurable via `JWT_ACCESS_TOKEN_TTL_MINUTES` / `JWT_REFRESH_TOKEN_TTL_DAYS`.
+`JWT_SECRET` **must** be overridden in staging/production; the value in
+`application.properties` is a local-dev-only default.
+
+Every other controller's `X-User-Id`/`X-Organization-Id` headers are still there, but they're
+no longer client-supplied: `JwtAuthenticationFilter` overwrites them from the verified
+token's claims on every request, so those headers are trustworthy without any controller
+code having changed.
+
+### Demo credentials
+
+All 6 seeded users (`db/seed/R__demo_data.sql`, local profile only) share the password
+**`SafeZone123!`** - e.g. `jane.smith@acme-construction.test` / `SafeZone123!`.
+
 ## Prerequisites
 
 - **JDK 21** (the Gradle wrapper will use whatever `java` toolchain it finds/downloads for this version)
@@ -23,20 +50,36 @@ aid). Each business area lives in its own module under `src/main/java/com/safezo
 
 ## Branching
 
-- `dev` — where all work lands. Every change goes through a pull request into `dev`
-  requiring 2 approvals and a passing CI build; no one can push to it directly.
-- `staging` / `production` — updated automatically. Merging a PR into `dev` triggers a
-  workflow that opens and auto-merges a promotion PR into each, once CI passes there too.
-  Nobody pushes to these branches by hand.
+`dev` is the only permanent branch for now — no `staging`/`production` split yet,
+that's deferred until it's actually needed. Everything else is temporary work that
+gets deleted once it's done with.
 
-Day to day: branch off `dev`, open a PR back into `dev`.
+- `dev` — where all work lands, and the default branch. Every change goes through a
+  pull request into `dev` requiring 2 approvals and a passing CI build; no one can
+  push to it directly.
+
+### Working branches
+
+Branch off `dev`, name it `<your-name>/<type>/<short-description>`, open a PR back
+into `dev`. `type` is one of:
+
+- `bug` — fixing something broken
+- `task` — a planned piece of work (feature, chore, setup)
+- `refactor` — restructuring without changing behavior
+
+Examples: `adamk/bug/fix-login-redirect`, `adamk/task/add-report-export`,
+`adamk/refactor/simplify-sync-service`.
+
+Once a branch's PR merges into `dev`, GitHub deletes it automatically (repo setting:
+"Automatically delete head branches") — `dev` plus whatever branches represent work
+currently in flight is all that should ever exist.
 
 ## Running locally
 
-> **Once this is deployed to the cloud**, dev/staging/production will each have their
-> own cloud-hosted Postgres database — the `docker compose` Postgres setup below is
-> local-only and won't be used at that point. Docker's role shifts to containerizing
-> the *app itself* for deployment, rather than running its database.
+> **Once this is deployed to the cloud**, the app will run against a cloud-hosted
+> Postgres database — the `docker compose` Postgres setup below is local-only and
+> won't be used at that point. Docker's role shifts to containerizing the *app itself*
+> for deployment, rather than running its database.
 
 ### Quick start
 
@@ -105,8 +148,8 @@ you want to keep or seed.
 ## Demo/seed data
 
 `src/main/resources/db/seed/R__demo_data.sql` is a Flyway repeatable migration that
-only runs when the `local` profile is active (never in staging/production/CI — see
-`spring.flyway.locations` in `application-local.properties`). It seeds:
+only runs when the `local` profile is active (never in CI, and never in any deployed
+environment — see `spring.flyway.locations` in `application-local.properties`). It seeds:
 
 - **2 organizations**: Acme Construction Group, Skyline Foods Co
 - **4 sites** across them (2 each)
@@ -120,6 +163,13 @@ If you edit this file, Flyway will re-apply it on next startup (repeatable migra
 re-run when their checksum changes). Inserts use `on conflict do nothing`, so re-running
 against a database that already has this data is safe — to fully re-seed after an edit,
 run `docker compose down -v` first.
+
+## API testing (Postman)
+
+`postman/SafeZone-Backend.postman_collection.json` covers every REST endpoint. Import
+it into Postman and go — its variables default to the IDs the demo data seeds above, so
+most requests work immediately against `./start.sh` with no setup. See the collection's
+own description and each request's description for details.
 
 ## Running tests
 

@@ -1,0 +1,345 @@
+{
+  "info": {
+    "name": "SafeZone Backend",
+    "description": "Every REST endpoint exposed by the SafeZone backend. Collection variables default to the IDs seeded by src/main/resources/db/seed/R__demo_data.sql, so most requests work immediately against a locally running instance (see README: ./start.sh) with no setup. Run 'Reports > Upsert report (create/update draft)' first if you want a freshly created report instead of the seeded draft - its Tests script saves the new id into {{reportId}} automatically.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "orgId", "value": "a0000000-0000-0000-0000-000000000001", "description": "Seeded: Acme Construction Group" },
+    { "key": "siteId", "value": "b0000000-0000-0000-0000-000000000001", "description": "Seeded: Downtown Tower Project" },
+    { "key": "userId", "value": "c0000000-0000-0000-0000-000000000002", "description": "Seeded: Tom Reid (SITE_SUPERVISOR)" },
+    { "key": "reportId", "value": "d0000000-0000-0000-0000-000000000003", "description": "Seeded: DRAFT toolbox talk report" },
+    { "key": "sheFileId", "value": "e0000000-0000-0000-0000-000000000002", "description": "Seeded: expiring-soon training certificate" },
+    { "key": "conflictId", "value": "", "description": "No conflicts are seeded - push a mutation with a stale baseVersion via Sync > Push to create one, then paste its id here" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/actuator/health", "host": ["{{baseUrl}}"], "path": ["actuator", "health"] }
+          }
+        },
+        {
+          "name": "Module structure (Modulith)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/actuator/modulith", "host": ["{{baseUrl}}"], "path": ["actuator", "modulith"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Organizations",
+      "item": [
+        {
+          "name": "Create organization",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{$guid}}\",\n  \"name\": \"New Organization\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/organizations", "host": ["{{baseUrl}}"], "path": ["api", "organizations"] }
+          }
+        },
+        {
+          "name": "Get organization",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/organizations/{{orgId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "organizations", "{{orgId}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sites",
+      "item": [
+        {
+          "name": "Create site",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{$guid}}\",\n  \"organizationId\": \"{{orgId}}\",\n  \"name\": \"New Site\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/sites", "host": ["{{baseUrl}}"], "path": ["api", "sites"] }
+          }
+        },
+        {
+          "name": "Get site",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/sites/{{siteId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sites", "{{siteId}}"]
+            }
+          }
+        },
+        {
+          "name": "List sites by organization",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/sites?organizationId={{orgId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sites"],
+              "query": [{ "key": "organizationId", "value": "{{orgId}}" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Industry Modules",
+      "item": [
+        {
+          "name": "List industry modules",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/industry-modules", "host": ["{{baseUrl}}"], "path": ["api", "industry-modules"] }
+          }
+        },
+        {
+          "name": "List report types for a module",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/industry-modules/CONSTRUCTION/report-types",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "industry-modules", "CONSTRUCTION", "report-types"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "Upsert report (create/update draft)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('reportId', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"organizationId\": \"{{orgId}}\",\n  \"siteId\": \"{{siteId}}\",\n  \"industryModuleCode\": \"CONSTRUCTION\",\n  \"reportTypeCode\": \"TOOLBOX_TALK\",\n  \"data\": {\n    \"dateTime\": \"2026-08-24T08:00:00Z\",\n    \"topic\": \"Ladder safety\",\n    \"attendees\": \"9 crew members\"\n  },\n  \"clientCreatedAt\": \"2026-08-24T08:00:00Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/{{reportId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports", "{{reportId}}"]
+            },
+            "description": "PUT, not POST - the id is client-generated (path variable), so this doubles as create-or-update-while-draft. Change {{reportId}} to a fresh {{$guid}} to create a new one instead of updating the seeded draft."
+          }
+        },
+        {
+          "name": "Get report",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/{{reportId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports", "{{reportId}}"]
+            }
+          }
+        },
+        {
+          "name": "List reports by site",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/reports?siteId={{siteId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports"],
+              "query": [{ "key": "siteId", "value": "{{siteId}}" }]
+            }
+          }
+        },
+        {
+          "name": "Submit report",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "X-User-Id", "value": "{{userId}}" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/reports/{{reportId}}/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "reports", "{{reportId}}", "submit"]
+            },
+            "description": "Idempotency-Key defaults to a fresh guid per send (Postman's dynamic variable) - re-sending the exact same key returns the original response instead of re-submitting."
+          }
+        }
+      ]
+    },
+    {
+      "name": "SHE Files",
+      "item": [
+        {
+          "name": "Register SHE file",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{$guid}}\",\n  \"organizationId\": \"{{orgId}}\",\n  \"siteId\": \"{{siteId}}\",\n  \"category\": \"TRAINING_CERTIFICATE\",\n  \"title\": \"Working at Heights Training\",\n  \"ownerUserId\": \"{{userId}}\",\n  \"storageKey\": \"demo/postman/working-at-heights.pdf\",\n  \"expiryDate\": \"2027-01-01\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/she-files", "host": ["{{baseUrl}}"], "path": ["api", "she-files"] },
+            "description": "category must be one of: LEGAL_APPOINTMENT, POLICY_PROCEDURE, TRAINING_CERTIFICATE, EQUIPMENT_CERTIFICATE, PERMIT_LICENSE."
+          }
+        },
+        {
+          "name": "Get SHE file",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/she-files/{{sheFileId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "she-files", "{{sheFileId}}"]
+            }
+          }
+        },
+        {
+          "name": "List SHE files by organization",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/she-files?organizationId={{orgId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "she-files"],
+              "query": [{ "key": "organizationId", "value": "{{orgId}}" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Compliance",
+      "item": [
+        {
+          "name": "Create compliance requirement",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id\": \"{{$guid}}\",\n  \"organizationId\": \"{{orgId}}\",\n  \"siteId\": \"{{siteId}}\",\n  \"industryModuleCode\": \"CONSTRUCTION\",\n  \"categoryCode\": \"TOOLBOX_TALKS\",\n  \"reportTypeCode\": \"TOOLBOX_TALK\",\n  \"frequency\": \"WEEKLY\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/compliance/requirements",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "compliance", "requirements"]
+            },
+            "description": "frequency must be one of: WEEKLY, MONTHLY, AS_NEEDED."
+          }
+        },
+        {
+          "name": "Get compliance status by site",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/compliance/status?siteId={{siteId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "compliance", "status"],
+              "query": [{ "key": "siteId", "value": "{{siteId}}" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sync",
+      "item": [
+        {
+          "name": "Push mutations",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id", "value": "{{userId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mutations\": [\n    {\n      \"entityType\": \"report\",\n      \"entityId\": \"{{reportId}}\",\n      \"baseVersion\": 0,\n      \"payload\": {\n        \"organizationId\": \"{{orgId}}\",\n        \"siteId\": \"{{siteId}}\",\n        \"industryModuleCode\": \"CONSTRUCTION\",\n        \"reportTypeCode\": \"TOOLBOX_TALK\",\n        \"status\": \"DRAFT\",\n        \"data\": {\n          \"dateTime\": \"2026-08-24T08:00:00Z\",\n          \"topic\": \"Updated via sync push\",\n          \"attendees\": \"12 crew members\"\n        }\n      }\n    }\n  ]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/sync/push", "host": ["{{baseUrl}}"], "path": ["api", "sync", "push"] },
+            "description": "entityType is currently only 'report'. A mismatched baseVersion against the server's current version is what produces a sync conflict (see Conflicts folder). Adjust the payload fields to match ReportSyncPayload if this changes."
+          }
+        },
+        {
+          "name": "Pull changes",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-Organization-Id", "value": "{{orgId}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/sync/pull",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sync", "pull"],
+              "query": [{ "key": "since", "value": "", "disabled": true, "description": "ISO-8601 instant, e.g. 2026-08-01T00:00:00Z. Omit to pull everything." }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Conflicts",
+      "item": [
+        {
+          "name": "List pending conflicts",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/conflicts", "host": ["{{baseUrl}}"], "path": ["api", "conflicts"] }
+          }
+        },
+        {
+          "name": "Resolve conflict",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id", "value": "{{userId}}" },
+              { "key": "Idempotency-Key", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resolution\": \"KEPT_SERVER\",\n  \"mergedPayload\": null\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/conflicts/{{conflictId}}/resolve",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "conflicts", "{{conflictId}}", "resolve"]
+            },
+            "description": "resolution must be one of: KEPT_SERVER, RESTORED_MINE, MERGED. mergedPayload is only used (and required) when resolution is MERGED. Set the {{conflictId}} collection variable from a real conflict first (see List pending conflicts)."
+          }
+        }
+      ]
+    }
+  ]
+}

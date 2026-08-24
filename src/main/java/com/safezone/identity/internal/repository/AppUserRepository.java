@@ -1,6 +1,7 @@
 package com.safezone.identity.internal.repository;
 
 import com.safezone.identity.internal.domain.AppUser;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -8,4 +9,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
 
     Optional<AppUser> findByEmail(String email);
+
+    List<AppUser> findByOrganizationId(UUID organizationId);
 }

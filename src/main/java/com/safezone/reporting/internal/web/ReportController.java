@@ -1,5 +1,6 @@
 package com.safezone.reporting.internal.web;
 
+import tools.jackson.databind.ObjectMapper;
 import com.safezone.reporting.internal.service.ReportService;
 import com.safezone.reporting.internal.web.dto.ReportResponse;
 import com.safezone.reporting.internal.web.dto.UpsertReportRequest;
@@ -25,6 +26,7 @@ class ReportController {
 
     private final ReportService reportService;
     private final IdempotencyGuard idempotencyGuard;
+    private final ObjectMapper objectMapper;
 
     // PUT, not POST: the id is client-generated, so create-or-update-while-draft is
     // naturally idempotent by id and doesn't need a separate Idempotency-Key.
@@ -59,7 +61,12 @@ class ReportController {
             @RequestHeader("X-User-Id") UUID actorId,
             @RequestHeader("Idempotency-Key") String idempotencyKey) {
         String requestHash = idempotencyGuard.hash(id, actorId);
-        return idempotencyGuard.execute(
-                idempotencyKey, requestHash, ReportResponse.class, () -> ReportResponse.from(reportService.submit(id, actorId)));
+        String existingJson = idempotencyGuard.findExistingResponseJson(idempotencyKey, requestHash);
+        if (existingJson != null) {
+            return objectMapper.readValue(existingJson, ReportResponse.class);
+        }
+        var response = ReportResponse.from(reportService.submit(id, actorId));
+        idempotencyGuard.save(idempotencyKey, requestHash, response);
+        return response;
     }
 }

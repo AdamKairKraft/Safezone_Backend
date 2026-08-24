@@ -21,15 +21,22 @@ insert into sites (id, version, created_at, updated_at, organization_id, name) v
     ('b0000000-0000-0000-0000-000000000004', 0, now(), now(), 'a0000000-0000-0000-0000-000000000002', 'Cold Storage Warehouse')
 on conflict (id) do nothing;
 
--- App users
-insert into app_users (id, version, created_at, updated_at, organization_id, email, full_name) values
-    ('c0000000-0000-0000-0000-000000000001', 0, now(), now(), 'a0000000-0000-0000-0000-000000000001', 'jane.smith@acme-construction.test', 'Jane Smith'),
-    ('c0000000-0000-0000-0000-000000000002', 0, now(), now(), 'a0000000-0000-0000-0000-000000000001', 'tom.reid@acme-construction.test', 'Tom Reid'),
-    ('c0000000-0000-0000-0000-000000000003', 0, now(), now(), 'a0000000-0000-0000-0000-000000000001', 'lindiwe.mokoena@acme-construction.test', 'Lindiwe Mokoena'),
-    ('c0000000-0000-0000-0000-000000000004', 0, now(), now(), 'a0000000-0000-0000-0000-000000000002', 'priya.naidoo@skylinefoods.test', 'Priya Naidoo'),
-    ('c0000000-0000-0000-0000-000000000005', 0, now(), now(), 'a0000000-0000-0000-0000-000000000002', 'carlos.mendes@skylinefoods.test', 'Carlos Mendes'),
-    ('c0000000-0000-0000-0000-000000000006', 0, now(), now(), 'a0000000-0000-0000-0000-000000000002', 'anna.petrova@skylinefoods.test', 'Anna Petrova')
+-- App users. password_hash is a BCrypt hash of the shared demo password "SafeZone123!"
+-- (see safezone-backend/README.md "Demo credentials") - local/demo data only, never used
+-- outside this seed.
+insert into app_users (id, version, created_at, updated_at, organization_id, email, full_name, password_hash) values
+    ('c0000000-0000-0000-0000-000000000001', 0, now(), now(), 'a0000000-0000-0000-0000-000000000001', 'jane.smith@acme-construction.test', 'Jane Smith', '$2a$10$.cqRrB/dJEnQuLKwitHuHuuixvwUQZdRQU2gXtUiaQY3fFWBYerve'),
+    ('c0000000-0000-0000-0000-000000000002', 0, now(), now(), 'a0000000-0000-0000-0000-000000000001', 'tom.reid@acme-construction.test', 'Tom Reid', '$2a$10$.cqRrB/dJEnQuLKwitHuHuuixvwUQZdRQU2gXtUiaQY3fFWBYerve'),
+    ('c0000000-0000-0000-0000-000000000003', 0, now(), now(), 'a0000000-0000-0000-0000-000000000001', 'lindiwe.mokoena@acme-construction.test', 'Lindiwe Mokoena', '$2a$10$.cqRrB/dJEnQuLKwitHuHuuixvwUQZdRQU2gXtUiaQY3fFWBYerve'),
+    ('c0000000-0000-0000-0000-000000000004', 0, now(), now(), 'a0000000-0000-0000-0000-000000000002', 'priya.naidoo@skylinefoods.test', 'Priya Naidoo', '$2a$10$.cqRrB/dJEnQuLKwitHuHuuixvwUQZdRQU2gXtUiaQY3fFWBYerve'),
+    ('c0000000-0000-0000-0000-000000000005', 0, now(), now(), 'a0000000-0000-0000-0000-000000000002', 'carlos.mendes@skylinefoods.test', 'Carlos Mendes', '$2a$10$.cqRrB/dJEnQuLKwitHuHuuixvwUQZdRQU2gXtUiaQY3fFWBYerve'),
+    ('c0000000-0000-0000-0000-000000000006', 0, now(), now(), 'a0000000-0000-0000-0000-000000000002', 'anna.petrova@skylinefoods.test', 'Anna Petrova', '$2a$10$.cqRrB/dJEnQuLKwitHuHuuixvwUQZdRQU2gXtUiaQY3fFWBYerve')
 on conflict (id) do nothing;
+
+-- Since this is a repeatable migration, an already-seeded environment (from before
+-- password_hash existed) needs the column backfilled explicitly - "on conflict do nothing"
+-- above wouldn't touch existing rows.
+update app_users set password_hash = '$2a$10$.cqRrB/dJEnQuLKwitHuHuuixvwUQZdRQU2gXtUiaQY3fFWBYerve' where password_hash = '';
 
 insert into app_user_roles (app_user_id, role) values
     ('c0000000-0000-0000-0000-000000000001', 'SHE_OFFICER'),
