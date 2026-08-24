@@ -22,7 +22,7 @@ jobs:
       # Matches the toolchain in build.gradle - Testcontainers-backed tests need the
       # Docker daemon, which ubuntu-latest runners already have installed.
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
