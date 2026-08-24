@@ -1,4 +1,4 @@
-package com.safezone.identity.internal.domain;
+package com.safezone.shared.domain;
 
 /**
  * Cross-industry-module role vocabulary. Which responsibilities/required-reports a

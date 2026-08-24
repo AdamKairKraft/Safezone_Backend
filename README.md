@@ -15,6 +15,33 @@ aid). Each business area lives in its own module under `src/main/java/com/safezo
 | `notification` | Reacts to domain events (e.g. a submitted report) and notifies |
 | `shared` | Cross-module base types, idempotency, and web error handling |
 
+## Authentication
+
+The API is secured with JWT bearer tokens (`identity.internal.security`, wired up via
+Spring Security). There's no session/cookie state - every protected request needs
+`Authorization: Bearer <accessToken>`.
+
+- `POST /api/auth/login` `{email, password}` → `{accessToken, refreshToken, expiresIn, user}`
+- `POST /api/auth/refresh` `{refreshToken}` → same shape (refresh tokens rotate: the old one
+  is revoked the moment it's used)
+- `POST /api/auth/logout` `{refreshToken}` → revokes it
+
+Access tokens last 30 minutes; refresh tokens last 14 days (deliberately long - a tablet
+client can go offline for a multi-day stretch and still resync without forcing a re-login).
+Both are configurable via `JWT_ACCESS_TOKEN_TTL_MINUTES` / `JWT_REFRESH_TOKEN_TTL_DAYS`.
+`JWT_SECRET` **must** be overridden in staging/production; the value in
+`application.properties` is a local-dev-only default.
+
+Every other controller's `X-User-Id`/`X-Organization-Id` headers are still there, but they're
+no longer client-supplied: `JwtAuthenticationFilter` overwrites them from the verified
+token's claims on every request, so those headers are trustworthy without any controller
+code having changed.
+
+### Demo credentials
+
+All 6 seeded users (`db/seed/R__demo_data.sql`, local profile only) share the password
+**`SafeZone123!`** - e.g. `jane.smith@acme-construction.test` / `SafeZone123!`.
+
 ## Prerequisites
 
 - **JDK 21** (the Gradle wrapper will use whatever `java` toolchain it finds/downloads for this version)

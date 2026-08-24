@@ -1,6 +1,7 @@
 package com.safezone.identity.internal.domain;
 
 import com.safezone.shared.domain.BaseEntity;
+import com.safezone.shared.domain.RoleType;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
@@ -32,6 +33,10 @@ public class AppUser extends BaseEntity {
 
     @Column(name = "full_name", nullable = false)
     private String fullName;
+
+    // BCrypt hash; never serialized into a response DTO (UserResponse deliberately omits it).
+    @Column(name = "password_hash", nullable = false)
+    private String passwordHash;
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "app_user_roles", joinColumns = @JoinColumn(name = "app_user_id"))
