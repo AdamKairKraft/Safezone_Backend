@@ -1,0 +1,24 @@
+name: Promote dev to staging and production
+
+on:
+  push:
+    branches: [dev]
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout dev
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 0
+
+      - name: Fast-forward staging to dev
+        run: git push origin HEAD:staging
+
+      - name: Fast-forward production to dev
+        run: git push origin HEAD:production
