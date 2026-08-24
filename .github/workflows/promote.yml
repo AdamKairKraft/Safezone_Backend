@@ -21,7 +21,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Open and auto-merge promotion PR
+      - name: Open promotion PR, wait for required checks, then merge
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -45,4 +45,11 @@ jobs:
               --body "Automated promotion of dev ($SHORT_SHA) to ${{ matrix.target }}.")
           fi
 
-          gh pr merge "$PR_URL" --merge --auto
+          # `gh pr merge --auto` enables GitHub's built-in auto-merge, which refuses
+          # to turn on while the PR's overall check rollup is anything but clean -
+          # including this very job's own (non-required) check run on the matching
+          # commit SHA, which fails auto-merge-enable with a "PR is in unstable
+          # status" error. Waiting for just the required check, then merging
+          # directly, sidesteps that self-referential deadlock entirely.
+          gh pr checks "$PR_URL" --watch --required
+          gh pr merge "$PR_URL" --merge
