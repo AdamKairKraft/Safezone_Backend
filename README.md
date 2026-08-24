@@ -23,20 +23,13 @@ aid). Each business area lives in its own module under `src/main/java/com/safezo
 
 ## Branching
 
-Three permanent branches; everything else is temporary work that gets deleted once
-it's done with.
+`dev` is the only permanent branch for now — no `staging`/`production` split yet,
+that's deferred until it's actually needed. Everything else is temporary work that
+gets deleted once it's done with.
 
-- `dev` — where all work lands. Every change goes through a pull request into `dev`
-  requiring 2 approvals and a passing CI build; no one can push to it directly.
-- `staging` / `production` — updated automatically, no PR involved. Merging a PR into
-  `dev` triggers a workflow (`.github/workflows/promote.yml`) that pushes that same
-  commit straight to `staging` and `production` once CI has passed on `dev`. Nobody
-  pushes to these branches by hand, and no pull request ever targets them directly.
-
-  > This relies on everyone with push access sticking to the `dev` PR flow rather than
-  > pushing to `staging`/`production` directly — GitHub can only *technically* block
-  > that on an organization-owned repo (push-access restrictions aren't available on
-  > personal accounts). Worth moving to an org if/when more people join with push access.
+- `dev` — where all work lands, and the default branch. Every change goes through a
+  pull request into `dev` requiring 2 approvals and a passing CI build; no one can
+  push to it directly.
 
 ### Working branches
 
@@ -51,15 +44,15 @@ Examples: `adamk/bug/fix-login-redirect`, `adamk/task/add-report-export`,
 `adamk/refactor/simplify-sync-service`.
 
 Once a branch's PR merges into `dev`, GitHub deletes it automatically (repo setting:
-"Automatically delete head branches") — `dev`/`staging`/`production` plus whatever
-branches represent work currently in flight is all that should ever exist.
+"Automatically delete head branches") — `dev` plus whatever branches represent work
+currently in flight is all that should ever exist.
 
 ## Running locally
 
-> **Once this is deployed to the cloud**, dev/staging/production will each have their
-> own cloud-hosted Postgres database — the `docker compose` Postgres setup below is
-> local-only and won't be used at that point. Docker's role shifts to containerizing
-> the *app itself* for deployment, rather than running its database.
+> **Once this is deployed to the cloud**, the app will run against a cloud-hosted
+> Postgres database — the `docker compose` Postgres setup below is local-only and
+> won't be used at that point. Docker's role shifts to containerizing the *app itself*
+> for deployment, rather than running its database.
 
 ### Quick start
 
@@ -128,8 +121,8 @@ you want to keep or seed.
 ## Demo/seed data
 
 `src/main/resources/db/seed/R__demo_data.sql` is a Flyway repeatable migration that
-only runs when the `local` profile is active (never in staging/production/CI — see
-`spring.flyway.locations` in `application-local.properties`). It seeds:
+only runs when the `local` profile is active (never in CI, and never in any deployed
+environment — see `spring.flyway.locations` in `application-local.properties`). It seeds:
 
 - **2 organizations**: Acme Construction Group, Skyline Foods Co
 - **4 sites** across them (2 each)
