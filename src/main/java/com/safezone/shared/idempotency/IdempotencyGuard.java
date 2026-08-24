@@ -6,7 +6,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
-import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -22,17 +21,30 @@ public class IdempotencyGuard {
     private final IdempotencyService idempotencyService;
     private final ObjectMapper objectMapper;
 
-    public <T> T execute(String idempotencyKey, String requestHash, Class<T> responseType, Supplier<T> action) {
+    // No Class<T>/Supplier<T> (or even raw Class/Supplier) parameters here, on purpose:
+    // Spring Modulith's observability tracing reflectively renders every parameter's
+    // generic type for each cross-module call, and java.lang.Class/java.util.function.
+    // Supplier are themselves declared generic (Class<T>, Supplier<T>) - any reference
+    // to them, raw or wildcarded, still reports hasGenerics()=true and recurses into
+    // that unresolvable declared type variable, NullPointerExceptions. Only genuinely
+    // non-generic types (String, Object) are safe here. Callers do their own
+    // (de)serialization with their own ObjectMapper instead of handing this a type
+    // token or a callback to invoke.
+
+    /** The previously-saved response JSON for this key, or null if it hasn't been used yet. */
+    public String findExistingResponseJson(String idempotencyKey, String requestHash) {
         var existing = idempotencyService.find(idempotencyKey);
-        if (existing.isPresent()) {
-            if (!existing.get().getRequestHash().equals(requestHash)) {
-                throw new ConflictException("Idempotency-Key reused with a different request body");
-            }
-            return readValue(existing.get().getResponseBody(), responseType);
+        if (existing.isEmpty()) {
+            return null;
         }
-        T result = action.get();
+        if (!existing.get().getRequestHash().equals(requestHash)) {
+            throw new ConflictException("Idempotency-Key reused with a different request body");
+        }
+        return existing.get().getResponseBody();
+    }
+
+    public void save(String idempotencyKey, String requestHash, Object result) {
         idempotencyService.save(idempotencyKey, requestHash, 200, writeValue(result));
-        return result;
     }
 
     public String hash(Object... parts) {
@@ -51,14 +63,6 @@ public class IdempotencyGuard {
     private String writeValue(Object value) {
         try {
             return objectMapper.writeValueAsString(value);
-        } catch (Exception e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
-    private <T> T readValue(String json, Class<T> type) {
-        try {
-            return objectMapper.readValue(json, type);
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }

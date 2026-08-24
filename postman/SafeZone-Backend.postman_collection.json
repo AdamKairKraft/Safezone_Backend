@@ -194,7 +194,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "reports", "{{reportId}}", "submit"]
             },
-            "description": "Idempotency-Key defaults to a fresh guid per send (Postman's dynamic variable) - re-sending the exact same key returns the original response instead of re-submitting.\n\nKNOWN ISSUE (as of this writing): currently returns 500. IdempotencyGuard.execute()'s generic return type breaks Spring Modulith's observability instrumentation (NullPointerException in DefaultObservedModule.render, not application code) whenever a cross-module call goes through it. Resolve conflict hits the same issue."
+            "description": "Idempotency-Key defaults to a fresh guid per send (Postman's dynamic variable) - re-sending the exact same key returns the original response instead of re-submitting."
           }
         }
       ]
@@ -336,7 +336,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "conflicts", "{{conflictId}}", "resolve"]
             },
-            "description": "resolution must be one of: KEPT_SERVER, RESTORED_MINE, MERGED. mergedPayload is only used (and required) when resolution is MERGED. Set the {{conflictId}} collection variable from a real conflict first (see List pending conflicts).\n\nKNOWN ISSUE (as of this writing): currently returns 500, same root cause as Reports > Submit report - see that request's description."
+            "description": "resolution must be one of: KEPT_SERVER, RESTORED_MINE, MERGED. mergedPayload is only used (and required) when resolution is MERGED. Set the {{conflictId}} collection variable from a real conflict first (see List pending conflicts)."
           }
         }
       ]

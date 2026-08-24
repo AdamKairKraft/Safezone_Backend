@@ -1,5 +1,6 @@
 package com.safezone.sync.internal.web;
 
+import tools.jackson.databind.ObjectMapper;
 import com.safezone.shared.idempotency.IdempotencyGuard;
 import com.safezone.sync.internal.service.ConflictService;
 import com.safezone.sync.internal.web.dto.ConflictResponse;
@@ -23,6 +24,7 @@ class ConflictController {
 
     private final ConflictService conflictService;
     private final IdempotencyGuard idempotencyGuard;
+    private final ObjectMapper objectMapper;
 
     @GetMapping
     public List<ConflictResponse> listPending() {
@@ -38,10 +40,13 @@ class ConflictController {
             @RequestHeader("Idempotency-Key") String idempotencyKey,
             @Valid @RequestBody ResolveConflictRequest request) {
         String requestHash = idempotencyGuard.hash(id, request.resolution(), request.mergedPayload());
-        return idempotencyGuard.execute(
-                idempotencyKey,
-                requestHash,
-                ConflictResponse.class,
-                () -> ConflictResponse.from(conflictService.resolve(id, request.resolution(), request.mergedPayload(), actorId)));
+        String existingJson = idempotencyGuard.findExistingResponseJson(idempotencyKey, requestHash);
+        if (existingJson != null) {
+            return objectMapper.readValue(existingJson, ConflictResponse.class);
+        }
+        var response =
+                ConflictResponse.from(conflictService.resolve(id, request.resolution(), request.mergedPayload(), actorId));
+        idempotencyGuard.save(idempotencyKey, requestHash, response);
+        return response;
     }
 }

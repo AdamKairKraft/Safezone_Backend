@@ -149,9 +149,7 @@ run `docker compose down -v` first.
 `postman/SafeZone-Backend.postman_collection.json` covers every REST endpoint. Import
 it into Postman and go — its variables default to the IDs the demo data seeds above, so
 most requests work immediately against `./start.sh` with no setup. See the collection's
-own description and each request's description for details (including one known bug,
-flagged where it applies: `Submit report` / `Resolve conflict` currently 500 due to a
-Spring Modulith observability instrumentation issue, unrelated to this collection).
+own description and each request's description for details.
 
 ## Running tests
 
